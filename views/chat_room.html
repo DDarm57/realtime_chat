@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Socket.IO chat</title>
+    <style>
+      body {
+        margin: 0;
+        padding-bottom: 3rem;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+      }
+
+      #form {
+        background: rgba(0, 0, 0, 0.15);
+        padding: 0.25rem;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        height: 3rem;
+        box-sizing: border-box;
+        backdrop-filter: blur(10px);
+      }
+      #input {
+        border: none;
+        padding: 0 1rem;
+        flex-grow: 1;
+        border-radius: 2rem;
+        margin: 0.25rem;
+      }
+      #input:focus {
+        outline: none;
+      }
+      #form > button {
+        background: #333;
+        border: none;
+        padding: 0 1rem;
+        margin: 0.25rem;
+        border-radius: 3px;
+        outline: none;
+        color: #fff;
+      }
+
+      /* Style Chat */
+      .chat-list {
+        padding: 0;
+        font-size: 1rem;
+        margin: 20px;
+      }
+
+      .chat-list li {
+        margin-bottom: 10px;
+        overflow: auto;
+        color: #ffffff;
+      }
+
+      .chat-list .chat-img {
+        float: left;
+        width: 48px;
+      }
+
+      .chat-list .chat-img img {
+        -webkit-border-radius: 50px;
+        -moz-border-radius: 50px;
+        border-radius: 50px;
+        width: 100%;
+      }
+
+      .chat-list .chat-message {
+        -webkit-border-radius: 50px;
+        -moz-border-radius: 50px;
+        border-radius: 50px;
+        background: #5a99ee;
+        display: inline-block;
+        padding: 10px 20px;
+        position: relative;
+      }
+
+      .chat-list .chat-message:before {
+        content: "";
+        position: absolute;
+        top: 15px;
+        width: 0;
+        height: 0;
+      }
+
+      .chat-list .chat-message h5 {
+        margin: 0 0 5px 0;
+        font-weight: 600;
+        line-height: 100%;
+        font-size: 1.2rem;
+      }
+
+      .chat-list .chat-message p {
+        line-height: 18px;
+        margin: 0;
+        padding: 0;
+      }
+
+      .chat-list .chat-body {
+        margin-left: 20px;
+        float: left;
+        width: 70%;
+      }
+
+      .chat-list .in .chat-message:before {
+        left: -12px;
+        border-bottom: 20px solid transparent;
+        border-right: 20px solid #5a99ee;
+      }
+
+      .chat-list .out .chat-img {
+        float: right;
+      }
+
+      .chat-list .out .chat-body {
+        float: right;
+        margin-right: 20px;
+        text-align: right;
+      }
+
+      .chat-list .out .chat-message {
+        background: #fc6d4c;
+      }
+
+      .chat-list .out .chat-message:before {
+        right: -12px;
+        border-bottom: 20px solid transparent;
+        border-left: 20px solid #fc6d4c;
+      }
+
+      .card .card-header {
+        background: #17202b;
+        border: 0;
+        font-size: 20px;
+        padding: 0.65rem 1rem;
+        position: relative;
+        font-weight: 600;
+        color: #ffffff;
+      }
+
+      .content {
+        margin-top: 40px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="card-header">
+        Chat Group BY DD <a href="" style="color: #fff">Logout</a>
+      </div>
+      <div class="card-body height3">
+        <ul class="chat-list" id="messages"></ul>
+      </div>
+    </div>
+
+    <form id="form" action="">
+      <input id="input" autocomplete="on" /><button>Send</button>
+    </form>
+
+    <script
+      src="https://code.jquery.com/jquery-3.7.1.js"
+      integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4="
+      crossorigin="anonymous"
+    ></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      // Di sini, myData dapat diakses karena variabel tersebut dideklarasikan di luar $.get
+      $(document).ready(function () {
+        var myData; // Deklarasikan variabel di luar fungsi $.get
+        const createChat = (msg, type, name) => {
+          const chat_html =
+            '<li class="' +
+            type +
+            '"><div class="chat-img"><img alt="Avtar" src="https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png"/></div><div class="chat-body"><div class="chat-message"><h5>' +
+            name +
+            "</h5><p>" +
+            msg +
+            "</p></div></div></li>";
+          return chat_html;
+        };
+        $.get("/get_session", function (data) {
+          myData = data;
+
+          $("#form").on("submit", function (e) {
+            e.preventDefault();
+            const bubleChat = createChat($("input").val(), "out", "You");
+            $("#messages").append(bubleChat);
+            socket.emit("chat message", $("#input").val(), myData.session_name);
+            $("#input").val("");
+          });
+
+          socket.on("join chat", (message) => {
+            console.log(message);
+            $("#messages").append("<p>" + message + " joined chat</p>");
+          });
+          socket.on("new message", (data) => {
+            const { message, name } = data;
+            const bubleChat = createChat(message, "in", name);
+            $("#messages").append(bubleChat);
+            console.log(name + " : " + message);
+            window.scrollTo(0, document.body.scrollHeight);
+          });
+          socket.on("user disconnect", (name) => {
+            $("#messages").append("<p>" + name + "</p>");
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
